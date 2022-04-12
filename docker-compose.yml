@@ -1,0 +1,57 @@
+# версия синтаксиса
+version: '3'
+
+# какие контейнеры будут запускаться
+services:
+  # контейнер с php
+  app:
+    build: 
+      context: ./fpm
+      dockerfile: Dockerfile
+    image: myapp/php # имя будущего образа
+    container_name: app # имя контейнера после запуска
+    volumes:
+      - ./code:/data/application.local
+      - ./fpm/php.ini:/usr/local/etc/php/php.ini
+    # внутренняя сеть для контейнеров
+    networks:
+      - app-network
+
+  # контейнер с nginx
+  webserver:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    image: myapp/nginx
+    container_name: webserver
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./code:/data/application.local
+    networks:
+      - app-network
+
+  # контейнер с mysql из стандартного образа
+  db:
+    image: mysql:5.7.22
+    container_name: db
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    volumes:
+      - ./dbdata:/var/lib/mysql
+      - ./dbconfig/my.cnf:/etc/mysql/my.cnf
+    networks:
+      - app-network
+
+#Docker Networks
+# При помощи network мы описываем внутреннюю виртуальную сеть, которая будет объединять наши контейнеры между собой, 
+# чтобы они могли обмениваться данными, как если бы они были «железными» серверами.  
+# В данном случае мы используем сеть типа «мост» (bridge). Это сеть по умолчанию. 
+# При первом запуске Docker организует такую сеть. Её можно найти, вызвав 'docker network ls'.
+networks:
+  app-network:
+    driver: bridge
